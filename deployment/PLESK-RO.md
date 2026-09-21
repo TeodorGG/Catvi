@@ -414,6 +414,65 @@ După salvare, verifică în browser că `https://DOMENIU/api/health` răspunde
 `{"ok":true,...}` și că antetul `content-encoding` **lipsește** pe
 `https://DOMENIU/api/speedtest/download?size=1000000`.
 
+### Bara de la final din `proxy_pass`
+
+`proxy_pass https://api.DOMENIU.md;` — **fără** bară la final. Așa Nginx
+trimite calea neatinsă: `/api/speedtest/session` ajunge la backend exact ca
+`/api/speedtest/session`, potrivindu-se cu rutele din `app.js`.
+
+Cu bară (`https://api.DOMENIU.md/;`) Nginx taie prefixul `/api/` și toate
+rutele dau 404. Este cea mai frecventă greșeală la această configurație.
+
+### Dacă panoul nu are „Additional nginx directives”
+
+Pe multe planuri partajate opțiunea lipsește. Atunci front-end-ul cheamă
+direct subdomeniul, iar traficul devine cross-origin.
+
+**1. La aplicația frontend**, în variabilele de mediu:
+
+```
+NEXT_PUBLIC_API_BASE=https://api.DOMENIU.md/api
+```
+
+Fiind variabilă `NEXT_PUBLIC_`, valoarea se compilează în bundle: după ce o
+setezi trebuie rulat din nou *Run script* → `deploy`. Un simplu restart nu
+schimbă nimic.
+
+**2. La aplicația backend**, `ALLOWED_ORIGINS` rămâne domeniul principal
+(`https://DOMENIU`), nu subdomeniul — browserul asta trimite ca `Origin`.
+
+#### Costul, și cum a fost redus
+
+Antetul `X-Test-Token` este „non-simplu”, deci browserul face o cerere
+`OPTIONS` de preflight înaintea fiecărei cereri de măsurare. Fără contramăsuri,
+cele 8 ping-uri cronometrate ar include fiecare un round-trip suplimentar, iar
+latența raportată ar fi sistematic prea mare.
+
+De aceea CORS-ul din `app.js` trimite acum `Access-Control-Max-Age: 86400`.
+Browserul reține rezultatul preflight-ului, iar motorul de test face oricum o
+cerere de încălzire înaintea eșantioanelor:
+
+```js
+await get("ping");           // aici cade preflight-ul
+for (let i = 0; i < 8; i++)  // acestea refolosesc rezultatul reținut
+```
+
+Astfel preflight-ul este absorbit de încălzire, exact ca overhead-ul de TLS
+pentru care fusese gândită. Download-ul și upload-ul primesc câte un preflight
+propriu, fiindcă memorarea se face per adresă și metodă, dar acolo un
+round-trip în plus peste câteva secunde de transfer este neglijabil.
+
+Browserele impun propriile limite superioare — Chrome reține preflight-ul cel
+mult două ore, indiferent de valoarea trimisă.
+
+#### Totuși, cere directivele
+
+Aceasta rămâne o soluție de compromis: același origin ar elimina complet
+preflight-ul. Cere-i suportului host.md activarea directivelor Nginx pentru
+domeniu — mesajul din [`HOST-MD-RO.md`](HOST-MD-RO.md) §4 o cere deja la
+punctul 3. Când devin disponibile, șterge `NEXT_PUBLIC_API_BASE`, rulează
+`deploy` din nou și treci pe configurația din `plesk-nginx.conf`.
+
 ---
 
 ## 9. PostgreSQL

@@ -26,6 +26,14 @@ function createApp(db, config) {
       origin: config.origins,
       credentials: true,
       exposedHeaders: ["Content-Length"],
+      // Only matters when the frontend is served from a different host than
+      // the API, i.e. when /api/ cannot be proxied under one origin. The
+      // X-Test-Token header makes every measurement request preflighted;
+      // without a cached preflight the extra OPTIONS round-trip is added to
+      // each timed sample and inflates the reported latency. The engine's
+      // warm-up request absorbs the single preflight, and the timed samples
+      // then reuse it. Browsers cap this themselves (Chrome at 2 hours).
+      maxAge: 86400,
     }),
   );
   const limiter = (limit, windowMs) =>
