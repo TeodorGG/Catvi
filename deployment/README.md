@@ -2,6 +2,8 @@
 
 The server must physically be in Moldova. Hosting and database credentials have not been configured by this code change.
 
+> **Plesk without SSH?** The target host (`217.26.150.25`) runs Plesk with SSH disabled. Follow [`PLESK-RO.md`](PLESK-RO.md) instead of this file — it covers the panel-only install, the two Node.js applications, and the Nginx directives that keep measurements accurate. This file describes a VPS you administer directly.
+
 ## Existing PostgreSQL (the intended production setup)
 
 Run one backend process and one Next.js frontend on the host, using a process manager or containers. Configure the backend from `.env.example`:

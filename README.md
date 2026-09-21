@@ -4,7 +4,7 @@ Romanian-first internet speed testing, voluntary research collection, regional s
 
 ## Run locally
 
-Use Node.js 24 or newer. Install dependencies in both projects:
+Use Node.js 22 or newer. Install dependencies in both projects:
 
 ```sh
 npm ci --prefix catvi-backend
@@ -74,7 +74,7 @@ Public regional averages require at least 5 usable tests against a server config
 
 ## Moldova deployment
 
-See [deployment instructions](deployment/README.md), [Compose](deployment/compose.yml), and [Nginx configuration](deployment/nginx.conf). The frontend and measurement API should share a public HTTPS origin, with `/api/` routed directly to the Moldova API. Do not put measurement traffic behind a CDN, tunnel, response compression, or buffering proxy. Next.js buffering is acceptable for development only; its upload limit is configured above the API's bounded payload size.
+See [deployment instructions](deployment/README.md), [Compose](deployment/compose.yml), and [Nginx configuration](deployment/nginx.conf). For the Plesk host without SSH access, follow [PLESK-RO.md](deployment/PLESK-RO.md). The frontend and measurement API should share a public HTTPS origin, with `/api/` routed directly to the Moldova API. Do not put measurement traffic behind a CDN, tunnel, response compression, or buffering proxy. Next.js buffering is acceptable for development only; its upload limit is configured above the API's bounded payload size.
 
 A Moldova endpoint measures the route to that endpoint. It does **not** prove the entire route stays within Moldova or measure all international internet destinations. Validate the host's physical location, transit/peering, available uplink capacity and throughput under concurrent clients before launch.
 

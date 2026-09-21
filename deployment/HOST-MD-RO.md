@@ -4,6 +4,8 @@ Aplicația conține două servicii Node.js (Next.js și Express), plus PostgreSQ
 
 ## 1. Identifică serviciul și panoul
 
+> **Constatat pe serverul 217.26.150.25:** panoul este **Plesk** (porturile 8443/8880 deschise, redirect către `/login.php`; porturile cPanel 2082–2087 sunt închise), iar în panou accesul SSH apare ca **„Forbidden”**. Porturile 22 și 2222 nu răspund. Procedura concretă de instalare fără SSH este în [`PLESK-RO.md`](PLESK-RO.md); secțiunile de mai jos rămân valabile pentru context și pentru cazul unui VPS cu acces complet.
+
 În contul de client, verifică numele exact al serviciului cumpărat, IP-ul VPS-ului, accesul SSH și sistemul de operare. Verifică dacă panoul este cPanel, WHM sau Plesk. Site-ul public host.md descrie Plesk pentru shared hosting, ceea ce nu confirmă panoul de pe VPS-ul tău.
 
 În cPanel caută `Application Manager`, `Setup Node.js App` sau, în versiunile noi, `Websites`. În Plesk caută `Websites & Domains` → domeniu → `Node.js`. Aceste funcții apar numai dacă furnizorul le-a activat. Cere host.md activarea suportului dacă lipsește.
@@ -31,7 +33,19 @@ Pe VPS cu acces SSH se pot rula separat frontend-ul și backend-ul, cu restart a
 
 Mesaj de trimis în ticket, completând domeniul:
 
-> Doresc să instalez CATVI pe domeniul DOMENIU. Proiectul are frontend Next.js 16 și backend Express, cu PostgreSQL existent. Configurația actuală cere Node.js 24 sau mai nou. Vă rog să confirmați accesul SSH, panoul instalat și metoda suportată pentru rularea persistentă a celor două aplicații. Frontend-ul trebuie servit la `/`, iar backend-ul direct la `/api/`, sub același domeniu HTTPS. Endpoint-urile de test transferă până la 16 MiB per cerere și aproximativ 240 MB per test; au nevoie de răspunsuri fără cache/comprimare și de transfer fără buffering. Confirmați că VPS-ul este fizic în Moldova, viteza portului, limita de trafic și că utilizarea pentru speed-test este permisă. Certificatul SSL este deja cumpărat; vă rog să indicați instalarea lui în panou și includerea lanțului intermediar.
+> Doresc să instalez CATVI pe domeniul DOMENIU. Proiectul are frontend Next.js 16 și backend Express, cu PostgreSQL existent. Rulează pe Node.js 22 sau mai nou (testat pe 22.23.2). În panoul Plesk accesul SSH apare ca „Forbidden”, deci instalarea trebuie făcută integral din panou.
+>
+> Vă rog să confirmați:
+>
+> 1. Extensia **Node.js** este activată pentru contul meu și pot înregistra **două** aplicații Node.js (frontend și backend) pe același domeniu sau pe domeniu plus subdomeniu.
+> 2. Pot rula `npm ci` și pot seta variabile de mediu din panou, fără SSH.
+> 3. Pot adăuga **directive Nginx adiționale** pentru domeniu. Am nevoie ca `/api/` să ajungă direct la backend, fără buffering, fără comprimare (gzip și Brotli) și fără cache. Endpoint-urile de măsurare transferă până la 16 MiB per cerere și aproximativ 240 MB per test; fără aceste setări rezultatele măsurătorilor sunt eronate.
+> 4. `client_max_body_size` poate fi ridicat la 17 MB pentru domeniu.
+> 5. Datele de conectare la PostgreSQL existent și dacă portul 5432 este accesibil din internet. Dacă da, vă rog să îl restricționați la conexiuni locale.
+> 6. VPS-ul este fizic în Moldova, viteza portului, limita de trafic și că utilizarea pentru speed-test este permisă.
+> 7. Certificatul SSL este deja cumpărat; vă rog să indicați instalarea lui în panou, inclusiv lanțul intermediar.
+>
+> Dacă rularea a două aplicații Node.js persistente nu este posibilă pe acest plan, vă rog să îmi indicați planul sau serviciul care o permite.
 
 Mesajul nu a fost trimis automat.
 
