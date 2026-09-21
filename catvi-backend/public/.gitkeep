@@ -1,0 +1,7 @@
+Document Root pentru aplicația Node.js din Plesk.
+
+Rămâne gol intenționat. API-ul nu servește fișiere statice; Passenger
+rulează procesul, iar Nginx nu are ce livra direct de aici.
+
+Nu pune Document Root pe catvi-backend/ — acolo stau app.js, storage.js,
+.env și bazele de date locale, iar Nginx le-ar servi ca fișiere publice.

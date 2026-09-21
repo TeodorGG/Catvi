@@ -244,12 +244,30 @@ de dezvoltare; scriptul se oprește cu eroare dacă un secret ar rămâne în ea
 | --- | --- |
 | Node.js version | 22.23.2 |
 | Application Root | `catvi/catvi-backend` |
+| **Document Root** | `catvi/catvi-backend/public` |
 | Application Startup File | `server.js` |
 | Application Mode | `production` |
 
-`server.js` apelează `listen()`, deci Passenger îl poate porni direct.
+`public/` este gol intenționat și există doar ca Document Root: API-ul nu
+servește fișiere statice, iar Passenger rulează procesul indiferent de ce e
+acolo.
 
-Apasă **NPM install**. Apoi, la *Custom environment variables*:
+> **Nu pune Document Root pe `catvi-backend/`.** Nginx ar servi ca fișiere
+> publice tot ce e în director — `app.js`, `storage.js`, `config.js`,
+> `package.json`, bazele de date locale și, cel mai grav, `.env` cu parola de
+> PostgreSQL și `JWT_SECRET`. Aceeași capcană ca `httpdocs` din secțiunea 0.
+
+`server.js` apelează `listen()`, deci Passenger îl poate porni direct. Spre
+deosebire de frontend, aici **nu există build**: Express rulează din sursă.
+
+### Ordinea
+
+**1. Întâi baza de date.** În *Databases*, creează o bază `catvi` și un rol
+dedicat. Nu folosi superutilizatorul PostgreSQL. Schema se aplică singură la
+prima pornire a aplicației — este idempotentă și își notează versiunea în
+`schema_migrations`.
+
+**2. Apoi variabilele de mediu**, la *Custom environment variables*:
 
 ```
 NODE_ENV=production
@@ -279,6 +297,45 @@ serverului, nu una dorită.
 cu panou lanțul poate fi mai lung; dacă limitarea de rată începe să vadă toți
 vizitatorii ca un singur IP, valoarea e greșită și trebuie ajustată după
 topologia reală.
+
+Generează `JWT_SECRET` pe calculatorul tău, nu într-un chat:
+
+```sh
+openssl rand -hex 32
+```
+
+Dacă parola de PostgreSQL conține caractere speciale (`@`, `:`, `/`, `#`),
+trebuie codificată URL în `DATABASE_URL`, altfel conexiunea eșuează cu o
+eroare de parsare care nu sugerează deloc cauza reală.
+
+**3. La final:** *Run script* → `deploy`
+
+Rulează `npm ci --omit=dev` și scrie `tmp/restart.txt`. Nu apăsa **NPM
+install** separat.
+
+### Verificare
+
+*Run script* → `db:check` trebuie să afișeze `database: 'postgresql'` și
+migrarea cu versiunea 1. Dacă afișează `sqlite`, `DATABASE_URL` nu a ajuns la
+proces: verifică variabilele și repornește aplicația.
+
+Apoi, din browser, pe subdomeniu:
+
+| Adresă | Răspuns așteptat |
+| --- | --- |
+| `https://api.DOMENIU.md/api/health` | `{"ok":true,...}` |
+| `https://api.DOMENIU.md/api/server` | identitatea reală, cu `country: "MD"` |
+| `https://api.DOMENIU.md/api/regions` | `[]` la început — normal, pragul e de 5 teste |
+
+Abia după ce acestea răspund, treci la secțiunea 8 și leagă `/api/` de pe
+domeniul principal către backend.
+
+### Dacă aplicația nu pornește
+
+`config.js` oprește procesul intenționat când configurația e incompletă, iar
+mesajul din log spune exact ce lipsește. Nu ocoli verificările: fiecare
+apără ceva real — un secret prea slab, o bază lipsă, un origin permisiv sau
+un server care pretinde că e în Moldova fără să fie.
 
 ---
 
