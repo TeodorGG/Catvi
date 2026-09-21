@@ -11,7 +11,8 @@
     "admin:create": "node scripts/create-admin.js",
     "db:check": "node scripts/check-db.js",
     "deploy": "npm ci --omit=dev && mkdir -p tmp && touch tmp/restart.txt",
-    "db:probe": "node scripts/db-probe.js"
+    "db:probe": "node scripts/db-probe.js",
+    "kill:stale": "node scripts/kill-stale.js"
   },
   "engines": {
     "node": ">=22.0.0"
