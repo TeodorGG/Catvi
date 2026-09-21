@@ -10,7 +10,8 @@
     "test": "node --test test/*.test.js",
     "admin:create": "node scripts/create-admin.js",
     "db:check": "node scripts/check-db.js",
-    "deploy": "npm ci --omit=dev && mkdir -p tmp && touch tmp/restart.txt"
+    "deploy": "npm ci --omit=dev && mkdir -p tmp && touch tmp/restart.txt",
+    "db:probe": "node scripts/db-probe.js"
   },
   "engines": {
     "node": ">=22.0.0"

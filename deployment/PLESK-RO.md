@@ -609,6 +609,44 @@ Dacă build-ul tot cade după aceste setări, serverul pur și simplu nu are
 memorie suficientă pentru SWC-WASM. Treci la varianta B: arhiva conține
 `.next` deja compilat și nu se mai compilează nimic pe server.
 
+### `EADDRINUSE: address already in use 127.0.0.1:4000`
+
+Cauza este *Run script* → `start`. **Nu rula niciodată `start` din panou.**
+
+Sub Passenger aplicația pornește singură, prin `.plesk.startup.cjs`, care face
+`require("./server.js")`. Comentariul din acel fișier spune explicit că
+Passenger înlocuiește `http.Server.prototype.listen`, deci aplicația se leagă
+la socket-ul lui Passenger, indiferent de `PORT`. Valorile `PORT` și `HOST` din
+configurație sunt ignorate.
+
+Când apeși `start`, pornești pe lângă Passenger **un al doilea proces**, un
+Node obișnuit, care chiar ocupă `127.0.0.1:4000` și rămâne viu. `EADDRINUSE`
+înseamnă că o apăsare anterioară e încă în execuție.
+
+Procesul acela e periculos tocmai pentru că pare să funcționeze: rewrite-ul
+din `next.config.mjs` trimite `/api/*` către `127.0.0.1:4000`, deci
+`catvi.md/api/health` răspunde `200` — dar de la instanța veche, pornită fără
+variabile de mediu, cu SQLite și `country: "LOCAL"`.
+
+Scripturi sigure din panou: `deploy`, `build`, `db:check`, `admin:create`.
+Niciodată `start` sau `dev`.
+
+Ca să nu mai depinzi de portul ocupat de procesul orfan, pune pe aplicația
+**frontend**:
+
+```
+API_PROXY_TARGET=https://api.DOMENIU.md
+```
+
+și rulează din nou *Run script* → `deploy`. Valoarea se scrie în
+`routes-manifest.json` **la build**, deci un simplu restart nu o schimbă.
+După asta `/api/` ajunge la aplicația gestionată de Passenger, iar procesul
+orfan devine doar memorie irosită — cere-i suportului să îl oprească.
+
+Atenție totuși: proxy-ul Next tamponează răspunsurile, ceea ce afectează
+măsurarea debitului. Este o soluție de etapă; varianta curată rămâne
+`/api/` rutat de Nginx, din `plesk-nginx.conf`.
+
 ### Curățare după o instalare eșuată
 
 O instalare picată lasă `node_modules` într-o stare incompletă. Înainte de a
