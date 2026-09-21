@@ -32,6 +32,21 @@ async function main() {
   process.once("SIGINT", stop);
 }
 main().catch((error) => {
-  console.error(error.message);
+  // Sub Passenger, un proces care moare la pornire apare în log doar ca
+  // „The application process exited prematurely”, fără niciun motiv. Tot ce
+  // se scrie aici ajunge în fișierul de eroare al lui Passenger, deci merită
+  // spus exact ce s-a întâmplat și în ce context.
+  const envPath = require("node:path").join(__dirname, ".env");
+  const envFound = require("node:fs").existsSync(envPath);
+  console.error("CATVI backend nu a pornit:", error.message);
+  console.error("  cwd        :", process.cwd());
+  console.error("  NODE_ENV   :", process.env.NODE_ENV || "(nesetat)");
+  console.error("  .env       :", envPath, envFound ? "(găsit)" : "(LIPSEȘTE)");
+  console.error(
+    "  DATABASE_URL:",
+    process.env.DATABASE_URL ? "(setat)" : "(nesetat → ar folosi SQLite)",
+  );
+  if (error.code) console.error("  cod        :", error.code);
+  if (error.stack) console.error(error.stack);
   process.exit(1);
 });
