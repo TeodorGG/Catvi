@@ -149,22 +149,36 @@ Express nu s-ar mai potrivi.
 *Git → Add Repository* → `https://github.com/TeodorGG/Catvi.git`, deployment
 path **`catvi`** (nu `httpdocs`).
 
-Apoi *Repository Settings → Enable additional deployment actions*, iar în
-casetă o singură linie:
+#### Deploy folosind doar comenzi npm
+
+Dacă panoul permite numai rularea de scripturi npm, nu și comenzi de shell,
+totul este deja împachetat în scriptul `deploy` din fiecare proiect. În
+*Run script* scrii un singur cuvânt:
+
+| Aplicație | Run script | Ce execută |
+| --- | --- | --- |
+| Backend | `deploy` | `npm ci --omit=dev` + `tmp/restart.txt` |
+| Frontend | `deploy` | `npm ci --omit=dev` + build + curățare cache + `tmp/restart.txt` |
+
+Un script npm este oricum o comandă de shell, deci limitarea panoului nu
+împiedică nimic. Rulează-l întâi pe backend, apoi pe frontend.
+
+Nu este nevoie să apeși separat **NPM install**: `deploy` conține deja
+`npm ci --omit=dev`, care este garantat, spre deosebire de butonul din panou
+— acela rulează `npm install` și instalează și `devDependencies`, dacă
+`NODE_ENV=production` nu este setat.
+
+#### Deploy automat la fiecare push (dacă shell-ul este permis)
+
+*Repository Settings → Enable additional deployment actions*, iar în casetă:
 
 ```sh
 sh deployment/plesk-deploy.sh
 ```
 
-Scriptul [`plesk-deploy.sh`](plesk-deploy.sh) face tot ce trebuie după fiecare
-`git pull` — dependențe, build, repornire — și stă în repo, deci caseta din
-panou nu se mai modifică niciodată. Comenzile pe care le execută:
-
-```sh
-cd catvi-backend  && npm ci --omit=dev
-cd catvi-frontend && npm ci --omit=dev && npm run build && rm -rf .next/cache
-touch catvi-backend/tmp/restart.txt catvi-frontend/tmp/restart.txt
-```
+[`plesk-deploy.sh`](plesk-deploy.sh) face același lucru pentru ambele proiecte
+dintr-o singură rulare, după fiecare `git pull`. Dacă acțiunile de deploy nu
+sunt disponibile pe planul tău, folosește tabelul de mai sus.
 
 Detalii care contează:
 
@@ -187,12 +201,20 @@ Detalii care contează:
   implicită `/api`, exact ce trebuie pentru același origin. O valoare pusă
   acolo s-ar compila permanent în build.
 
-#### Limita de memorie
+#### Bundler și memorie
 
-`next build` a atins **1,3 GB RSS** la măsurare (build de ~3 s). Dacă planul
-tău are sub ~1,5 GB disponibili, procesul va fi oprit — de regulă fără mesaj
-explicit, doar cu deploy eșuat. În acel caz treci la varianta B, care aduce
-`.next` gata compilat și elimină build-ul de pe server.
+Scriptul `build` este `next build --webpack`, **nu** Turbopack. Serverul are
+glibc mai vechi de 2.29, deci binding-urile native SWC nu se încarcă, iar
+Turbopack nu funcționează fără ele — vezi secțiunea 12.
+
+Efect secundar util: webpack a consumat **545 MB RSS** la măsurare, față de
+1,3 GB cu Turbopack. Încape mult mai confortabil în limitele unui plan
+partajat.
+
+Atenție însă: pe server SWC rulează prin **WASM**, sensibil mai lent decât
+varianta nativă de pe Mac. Build-ul de 1,8 s local poate dura minute acolo, cu
+risc de timeout în acțiunile de deploy. Dacă se întâmplă, varianta B rezolvă
+definitiv: aduce `.next` deja compilat și elimină build-ul de pe server.
 
 Spațiu ocupat după deploy: `node_modules` frontend ~345 MB, backend ~6,6 MB,
 `.next` ~7 MB. Verifică să încapă în cota de disc.
@@ -276,18 +298,36 @@ comandă CLI și nu poate fi folosită ca punct de pornire de către Passenger,
 care are nevoie de un fișier care apelează el însuși `listen()`. Scriptul
 `npm start` a rămas neschimbat, pentru Docker și rulare locală.
 
-Variabile de mediu:
+### Ordinea contează
+
+**1. Întâi variabilele de mediu**, la *Custom environment variables*:
 
 ```
 NODE_ENV=production
 PORT=3000
 ```
 
-Apoi **NPM install**.
+**2. Apoi:** *Run script* → `deploy`
 
-**Build pe server** (doar dacă ai folosit varianta A, Git): *Run script* →
-`build`. Dacă procesul este oprit fără mesaj clar, este limita de memorie;
-folosește varianta B, cu `.next` deja compilat.
+Atât. Scriptul face instalarea, build-ul și repornirea, într-o singură
+rulare.
+
+Dacă preferi pașii separați, sau vrei doar să recompilezi după o modificare:
+
+| Run script | Ce face |
+| --- | --- |
+| `deploy` | instalare + build + curățare + repornire |
+| `build` | doar `next build --webpack` |
+
+**Nu apăsa butonul NPM install** decât dacă `NODE_ENV=production` este deja
+setat. Butonul rulează `npm install`, care instalează și `devDependencies`,
+iar `unrs-resolver` pică atunci cu `code 127` — vezi secțiunea 12. Cu
+`NODE_ENV=production` setat, npm omite singur `devDependencies` și butonul
+devine sigur. Scriptul `deploy` nu depinde de asta: folosește explicit
+`npm ci --omit=dev`.
+
+Build-ul scrie în `.next/`, în directorul aplicației — niciodată în
+`httpdocs`.
 
 ---
 
@@ -394,6 +434,27 @@ Două cauze suprapuse:
 
 Nu instala niciodată `devDependencies` pe server: nu sunt necesare nici pentru
 `next build`, nici pentru rulare.
+
+### `Turbopack is not supported on this platform`
+
+```
+⚠ Attempted to load @next/swc-linux-x64-gnu, but an error occurred:
+  /lib64/libm.so.6: version `GLIBC_2.29' not found
+Error: Turbopack is not supported on this platform (linux/x64) because
+native bindings are not available.
+```
+
+Serverul are glibc mai veche decât 2.29 (CentOS/CloudLinux 7 sau similar),
+iar binding-urile native SWC din Next 16 cer cel puțin 2.28. Next revine
+automat pe WASM, dar documentația proprie spune explicit: WASM suportă
+compilarea și minificarea, **nu** și Turbopack.
+
+Rezolvat: scriptul `build` este acum `next build --webpack`. Webpack este
+calea oficială pentru platformele fără binding-uri native și, în plus,
+consumă mai puțină memorie — 545 MB față de 1,3 GB.
+
+Nu încerca să actualizezi glibc pe un hosting partajat. Dacă vrei totuși
+Turbopack, ai nevoie de un server cu distribuție mai nouă.
 
 ### Curățare după o instalare eșuată
 
