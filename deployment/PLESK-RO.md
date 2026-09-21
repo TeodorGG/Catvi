@@ -456,6 +456,43 @@ consumă mai puțină memorie — 545 MB față de 1,3 GB.
 Nu încerca să actualizezi glibc pe un hosting partajat. Dacă vrei totuși
 Turbopack, ai nevoie de un server cu distribuție mai nouă.
 
+### `exit code 9` la „Collecting page data”
+
+Build-ul compilează cu succes, apoi moare imediat:
+
+```
+✓ Compiled successfully in 15.0s
+  Running TypeScript ... Finished
+  Collecting page data using 7 workers ...
+⚠ Attempted to load @next/swc-linux-x64-gnu ... GLIBC_2.29 not found
+Process exited with non-zero exit code '9'
+```
+
+Next pornește câte un worker per CPU — șapte pe acea mașină — și fiecare
+încarcă separat SWC prin WASM, pentru că varianta nativă nu se poate încărca.
+Consumul se înmulțește cu șapte și depășește limita de memorie a contului,
+iar procesele sunt ucise.
+
+Rezolvat în `next.config.mjs`:
+
+```js
+experimental: {
+  cpus: Number(process.env.NEXT_BUILD_WORKERS || 1),
+  webpackMemoryOptimizations: true,
+},
+enablePrerenderSourceMaps: false,
+productionBrowserSourceMaps: false,
+```
+
+`experimental.cpus` este singura opțiune pe care Next o tratează ca override
+explicit al numărului de workeri. Cu un singur worker, mesajul devine
+„Collecting page data using 1 worker”, iar consumul rămâne mărginit. Pentru
+cele 9 pagini ale proiectului, diferența de timp este neglijabilă.
+
+Dacă build-ul tot cade după aceste setări, serverul pur și simplu nu are
+memorie suficientă pentru SWC-WASM. Treci la varianta B: arhiva conține
+`.next` deja compilat și nu se mai compilează nimic pe server.
+
 ### Curățare după o instalare eșuată
 
 O instalare picată lasă `node_modules` într-o stare incompletă. Înainte de a
