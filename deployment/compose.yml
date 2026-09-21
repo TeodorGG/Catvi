@@ -1,0 +1,41 @@
+# Run only on a host physically located in Moldova.
+services:
+  database:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: catvi
+      POSTGRES_USER: catvi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - research:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U catvi -d catvi']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  backend:
+    build: ../catvi-backend
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4000
+      DATABASE_URL: postgres://catvi@database:5432/catvi
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN, e.g. https://catvi.example.md}
+      SERVER_ID: ${SERVER_ID:?Set SERVER_ID}
+      SERVER_NAME: ${SERVER_NAME:?Set SERVER_NAME}
+      SERVER_COUNTRY: ${SERVER_COUNTRY:?Set MD only on a Moldova host}
+      TRUST_PROXY: '1'
+    ports: ['127.0.0.1:4000:4000']
+  frontend:
+    build: ../catvi-frontend
+    restart: unless-stopped
+    ports: ['127.0.0.1:3000:3000']
+volumes:
+  research:
