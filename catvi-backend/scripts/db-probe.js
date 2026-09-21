@@ -38,7 +38,13 @@ const candidates = [
 const seen = new Set();
 
 (async () => {
-  console.log(`bază: ${base.database}   utilizator: ${base.user || "(din sistem)"}`);
+  console.log(`bază: ${base.database}   utilizator DB: ${base.user || "(din sistem)"}`);
+// ident și peer decid după utilizatorul de sistem, nu după parolă. Dacă
+// diferă de cel sub care rulează Passenger, rezultatele de aici nu se
+// transferă automat la aplicație.
+let osUser = "necunoscut";
+try { osUser = require("node:os").userInfo().username; } catch {}
+console.log(`utilizator sistem: ${osUser} (uid ${process.getuid?.() ?? "?"})`);
   console.log("");
   let success = 0;
 

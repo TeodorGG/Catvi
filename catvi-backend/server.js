@@ -44,6 +44,18 @@ main().catch((error) => {
     `  NODE_ENV    : ${process.env.NODE_ENV || "(nesetat)"}`,
     `  .env        : ${envPath} ${fs.existsSync(envPath) ? "(găsit)" : "(LIPSEȘTE)"}`,
     `  DATABASE_URL: ${process.env.DATABASE_URL ? "(setat)" : "(nesetat → ar folosi SQLite)"}`,
+    // Contează pentru erorile de autentificare PostgreSQL: metodele `ident`
+    // și `peer` decid după utilizatorul de sistem al procesului, nu după
+    // parolă. Passenger poate rula aplicația ca alt utilizator decât cel
+    // sub care rulează scripturile din panou — de aici aceeași configurație
+    // care merge manual și eșuează sub Passenger.
+    `  utilizator  : ${(() => {
+      try {
+        return `${require("node:os").userInfo().username} (uid ${process.getuid?.() ?? "?"})`;
+      } catch {
+        return `uid ${process.getuid?.() ?? "necunoscut"}`;
+      }
+    })()}`,
     ...(error.code ? [`  cod         : ${error.code}`] : []),
     ...(error.stack ? [error.stack] : []),
     "",
