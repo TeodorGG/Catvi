@@ -45,6 +45,7 @@ find . -name '*.db' -delete
 find . -name '*.db-shm' -delete
 find . -name '*.db-wal' -delete
 find . -name '.DS_Store' -delete
+find . -name 'startup-error.log' -delete
 
 # Verificare de siguranță: oprește-te dacă a rămas un secret în stage.
 if find . \( -name '.env' -o -name '*.db' \) | grep -q .; then

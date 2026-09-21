@@ -36,17 +36,31 @@ main().catch((error) => {
   // „The application process exited prematurely”, fără niciun motiv. Tot ce
   // se scrie aici ajunge în fișierul de eroare al lui Passenger, deci merită
   // spus exact ce s-a întâmplat și în ce context.
+  const fs = require("node:fs");
   const envPath = require("node:path").join(__dirname, ".env");
-  const envFound = require("node:fs").existsSync(envPath);
-  console.error("CATVI backend nu a pornit:", error.message);
-  console.error("  cwd        :", process.cwd());
-  console.error("  NODE_ENV   :", process.env.NODE_ENV || "(nesetat)");
-  console.error("  .env       :", envPath, envFound ? "(găsit)" : "(LIPSEȘTE)");
-  console.error(
-    "  DATABASE_URL:",
-    process.env.DATABASE_URL ? "(setat)" : "(nesetat → ar folosi SQLite)",
-  );
-  if (error.code) console.error("  cod        :", error.code);
-  if (error.stack) console.error(error.stack);
+  const lines = [
+    `[${new Date().toISOString()}] CATVI backend nu a pornit: ${error.message}`,
+    `  cwd         : ${process.cwd()}`,
+    `  NODE_ENV    : ${process.env.NODE_ENV || "(nesetat)"}`,
+    `  .env        : ${envPath} ${fs.existsSync(envPath) ? "(găsit)" : "(LIPSEȘTE)"}`,
+    `  DATABASE_URL: ${process.env.DATABASE_URL ? "(setat)" : "(nesetat → ar folosi SQLite)"}`,
+    ...(error.code ? [`  cod         : ${error.code}`] : []),
+    ...(error.stack ? [error.stack] : []),
+    "",
+  ];
+  for (const line of lines) console.error(line);
+
+  // Passenger salvează propriul raport în /tmp, dar acela aparține altui
+  // utilizator și nu poate fi citit din panou. Scriem același lucru lângă
+  // aplicație, unde avem drepturi. Directorul nu este Document Root, deci
+  // fișierul nu este servit public.
+  try {
+    fs.appendFileSync(
+      require("node:path").join(__dirname, "startup-error.log"),
+      lines.join("\n"),
+    );
+  } catch {
+    // dacă nici aici nu putem scrie, stderr de mai sus rămâne singura urmă
+  }
   process.exit(1);
 });
