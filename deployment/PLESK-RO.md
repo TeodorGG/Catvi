@@ -9,29 +9,13 @@ Pentru contextul general și mesajul de trimis către suportul host.md, vezi
 
 ---
 
-## 0. Urgent: codul nu are voie să stea în `httpdocs`
+## 0. Structura pe server
 
-Repozitoriul a fost adus în `httpdocs`. `httpdocs` este directorul public al
-domeniului: tot ce se află acolo poate fi descărcat de oricine, ca fișier.
-Concret, sunt expuse sau vor fi expuse:
-
-- codul sursă complet, inclusiv `deployment/` și structura bazei de date;
-- directorul `.git/` — cu el, oricine poate clona întreg istoricul;
-- `catvi-backend/.env`, **în momentul în care îl vei crea acolo** — adică
-  parola de PostgreSQL și `JWT_SECRET`;
-- eventualele `research.db` / `catvi.db` generate de aplicație.
-
-Plesk blochează implicit fișierele care încep cu punct, dar asta acoperă doar
-`.env` și `.git`, nu și restul surselor, și nu este o garanție pe care merită
-să te bazezi pentru secrete.
-
-**Corecția:** codul trebuie mutat lângă `httpdocs`, nu în el. În Plesk,
-directorul rădăcină al abonamentului conține `httpdocs`, `logs`, `tmp` etc.
-Creează acolo un director `catvi` și mută repozitoriul în el:
+Codul stă într-un director **privat**, lângă `httpdocs`, nu în el:
 
 ```
 /var/www/vhosts/DOMENIU/
-├── httpdocs/          ← public; rămâne gol sau doar cu fișiere statice
+├── httpdocs/          ← public; rămâne GOL
 ├── catvi/             ← privat; aici stă codul
 │   ├── catvi-backend/
 │   ├── catvi-frontend/
@@ -40,20 +24,21 @@ Creează acolo un director `catvi` și mută repozitoriul în el:
 └── tmp/
 ```
 
-Aplicațiile Node.js din Plesk **nu** trebuie să ruleze din `httpdocs`.
-Passenger servește aplicația prin proces, nu prin fișiere publice: codul poate
-sta într-un director privat, iar `Document Root` rămâne separat de
-`Application Root`.
+`httpdocs` este directorul public al domeniului: orice ajunge acolo poate fi
+descărcat de oricine, inclusiv `.git/` (cu care se clonează tot istoricul) și
+`catvi-backend/.env` în momentul în care ar fi creat acolo — adică parola de
+PostgreSQL și `JWT_SECRET`. Plesk blochează implicit fișierele care încep cu
+punct, dar asta nu acoperă restul surselor și nu e o garanție pe care merită
+să te bazezi pentru secrete.
 
-Dacă ai folosit extensia **Git** din Plesk, schimbă calea din
-*Git → Repository Settings → Deployment path* din `httpdocs` în `catvi` și
-rulează un deploy nou. Apoi șterge manual din `httpdocs` ce a rămas.
+Aplicațiile nu au nevoie să fie publice ca să ruleze — vezi secțiunea 3, care
+explică de ce nu se copiază nimic în `httpdocs`.
 
-După mutare, verifică din browser că nu mai răspunde nimic la:
-`https://DOMENIU/.git/config`, `https://DOMENIU/catvi-backend/package.json`,
-`https://DOMENIU/README.md`. Toate trebuie să dea 404.
+**De făcut, dacă primul deploy a mers în `httpdocs`:** golește-l și schimbă
+calea din *Git → Repository Settings → Deployment path* în `catvi`. Altfel
+următorul `git push` îl reumple și mutarea manuală se pierde.
 
-> Nimic nu a ajuns pe GitHub: în repo sunt urmărite doar fișierele
+> Nimic sensibil nu a ajuns pe GitHub: în repo sunt urmărite doar fișierele
 > `.env.example`. `.env`, `*.db` și `*.db-wal` sunt acoperite de `.gitignore`.
 
 ---
@@ -90,7 +75,56 @@ aplica — mesajul din `HOST-MD-RO.md` §4 cere exact aceste confirmări.
 
 ---
 
-## 3. Topologia
+## 3. Nu se copiază nimic în `httpdocs`
+
+Aceasta nu este o aplicație care „se compilează și se pune în directorul
+public”. Nu există pas de copiere către `httpdocs`, și nici nu trebuie să
+existe.
+
+`npm run build` **nu** produce un site static. Produce `.next/`, un bundle de
+server care rulează în Node. În tot proiectul nu există niciun `index.html`:
+fiecare pagină este generată de proces, la cerere. Dacă ai pune `.next` în
+`httpdocs`, browserul ar primi fișiere JavaScript de server, nu un site.
+
+Passenger pornește aplicația ca **proces**, iar Nginx îi trimite cererile
+direct. Fișierele din `httpdocs` nu intră în ecuație. De aceea codul are voie
+să stea într-un director privat: nu este servit ca fișiere, ci executat.
+
+Traseul unei cereri:
+
+```
+browser → Nginx (Plesk) → Passenger → procesul Node (server.js) → răspuns
+                                       ↑
+                    codul din catvi/, niciodată din httpdocs
+```
+
+Singurul director servit ca fișiere este `catvi-frontend/public/`, cu cele
+cinci resurse statice (favicon, iconițe, `sw.js`, GeoJSON-ul hărții). Next.js
+le servește oricum singur; dacă vrei să le preia Nginx direct, pune
+`Document Root` pe el, conform tabelului de mai jos.
+
+### Cele două câmpuri din Plesk
+
+| Câmp | Ce înseamnă | Valoare pentru frontend |
+| --- | --- | --- |
+| **Application Root** | unde stă codul pe care îl execută Passenger | `catvi/catvi-frontend` |
+| **Document Root** | ce servește Nginx ca fișiere, înainte de aplicație | `catvi/catvi-frontend/public` |
+
+`<application root>/public` este convenția Passenger, deci configurația de
+mai sus este cea standard. `httpdocs` rămâne **gol** și nefolosit.
+
+### De făcut acum
+
+1. **Golește `httpdocs`** de codul copiat acolo de primul deploy.
+2. **Schimbă calea de deploy** în *Git → Repository Settings → Deployment
+   path*, din `httpdocs` în `catvi`. Altfel următorul `git push` reumple
+   `httpdocs` cu tot repozitoriul, iar mutarea manuală se pierde.
+3. Verifică din browser că dau 404: `https://DOMENIU/README.md`,
+   `https://DOMENIU/catvi-backend/package.json`, `https://DOMENIU/.git/config`.
+
+---
+
+## 4. Topologia
 
 Un singur origin public, ca browserul să nu facă cereri cross-origin în timpul
 măsurătorii (un preflight CORS ar distorsiona latența măsurată):
@@ -108,17 +142,60 @@ Express nu s-ar mai potrivi.
 
 ---
 
-## 4. Încărcarea codului
+## 5. Încărcarea codului
 
-### Varianta A — extensia Git din Plesk (recomandată, ai deja repo)
+### Varianta A — extensia Git din Plesk (deploy automatizat)
 
-*Git → Add Repository* → `https://github.com/TeodorGG/Catvi.git`,
-deployment path **`catvi`** (nu `httpdocs`), deploy manual.
+*Git → Add Repository* → `https://github.com/TeodorGG/Catvi.git`, deployment
+path **`catvi`** (nu `httpdocs`).
 
-Atenție: `.next` este în `.gitignore`, deci prin Git **nu** primești build-ul.
-Va trebui compilat pe server (secțiunea 6, varianta „build pe server”), ceea ce
-pe hosting partajat poate fi oprit de limita de memorie. Dacă se întâmplă,
-treci la varianta B.
+Apoi *Repository Settings → Enable additional deployment actions*, iar în
+casetă o singură linie:
+
+```sh
+sh deployment/plesk-deploy.sh
+```
+
+Scriptul [`plesk-deploy.sh`](plesk-deploy.sh) face tot ce trebuie după fiecare
+`git pull` — dependențe, build, repornire — și stă în repo, deci caseta din
+panou nu se mai modifică niciodată. Comenzile pe care le execută:
+
+```sh
+cd catvi-backend  && npm ci --omit=dev
+cd catvi-frontend && npm ci --omit=dev && npm run build && rm -rf .next/cache
+touch catvi-backend/tmp/restart.txt catvi-frontend/tmp/restart.txt
+```
+
+Detalii care contează:
+
+- **Versiunea de Node trebuie selectată explicit.** Hostul `catvi.md`
+  folosește `nodenv`, cu versiunile 16, 18, 20, 21 și 22 instalate. Dacă
+  niciuna nu e selectată, shim-ul răspunde `nodenv: node: command not found`
+  și le enumeră — deși `npm` pare să meargă. Fișierele `.node-version`
+  (valoarea `22`) din rădăcină și din fiecare proiect rezolvă asta, iar
+  scriptul mai setează și `NODENV_VERSION=22` ca plasă de siguranță.
+  Scriptul verifică `node` **și** `npm`, nu doar `npm`.
+- **`devDependencies` nu sunt necesare** pentru `next build` — verificat.
+  `--omit=dev` scurtează instalarea.
+- **Repornirea e la final**, după build. Passenger repornește la atingerea
+  lui `tmp/restart.txt`. Dacă build-ul eșuează, `set -e` oprește scriptul
+  înainte de repornire și versiunea veche rămâne în funcțiune.
+- **`.env` nu vine din git** (este în `.gitignore`). Configurația backend-ului
+  stă în *Custom environment variables* din panou, secțiunea 6, și supraviețuiește
+  deploy-urilor.
+- **Nu crea `.env.local`** în frontend. `NEXT_PUBLIC_API_BASE` are valoarea
+  implicită `/api`, exact ce trebuie pentru același origin. O valoare pusă
+  acolo s-ar compila permanent în build.
+
+#### Limita de memorie
+
+`next build` a atins **1,3 GB RSS** la măsurare (build de ~3 s). Dacă planul
+tău are sub ~1,5 GB disponibili, procesul va fi oprit — de regulă fără mesaj
+explicit, doar cu deploy eșuat. În acel caz treci la varianta B, care aduce
+`.next` gata compilat și elimină build-ul de pe server.
+
+Spațiu ocupat după deploy: `node_modules` frontend ~345 MB, backend ~6,6 MB,
+`.next` ~7 MB. Verifică să încapă în cota de disc.
 
 ### Varianta B — arhiva pregătită (ocolește build-ul pe server)
 
@@ -137,7 +214,7 @@ de dezvoltare; scriptul se oprește cu eroare dacă un secret ar rămâne în ea
 
 ---
 
-## 5. Backend — aplicație Node.js
+## 6. Backend — aplicație Node.js
 
 *Websites & Domains → `api.DOMENIU.md` → Node.js*
 
@@ -183,7 +260,7 @@ topologia reală.
 
 ---
 
-## 6. Frontend — aplicație Node.js
+## 7. Frontend — aplicație Node.js
 
 *Websites & Domains → `DOMENIU` → Node.js*
 
@@ -214,7 +291,7 @@ folosește varianta B, cu `.next` deja compilat.
 
 ---
 
-## 7. Directive Nginx
+## 8. Directive Nginx
 
 *Websites & Domains → DOMENIU → Apache & nginx Settings → Additional nginx
 directives.* Conținutul este în [`plesk-nginx.conf`](plesk-nginx.conf);
@@ -242,7 +319,7 @@ După salvare, verifică în browser că `https://DOMENIU/api/health` răspunde
 
 ---
 
-## 8. PostgreSQL
+## 9. PostgreSQL
 
 Creează o bază și un rol dedicate. Nu folosi superutilizatorul.
 
@@ -257,7 +334,7 @@ La prima pornire, backend-ul aplică singur schema inițială și scrie versiune
 
 ---
 
-## 9. Administratorul
+## 10. Administratorul
 
 Nu există înregistrare publică și nici promovare automată după email. Contul
 se creează explicit, din panou:
@@ -274,7 +351,7 @@ fiecare cerere. Rotirea lui `JWT_SECRET` invalidează toate sesiunile.
 
 ---
 
-## 10. Verificare finală
+## 11. Verificare finală
 
 1. `https://DOMENIU/` se încarcă.
 2. `https://DOMENIU/api/health` răspunde `{"ok":true,...}`.
@@ -295,7 +372,41 @@ de infrastructură.
 
 ---
 
-## 11. Ce nu a putut fi verificat de aici
+## 12. Erori întâlnite și cauza lor
+
+### `npm error code 127` la `unrs-resolver`
+
+```
+npm error path .../catvi-frontend/node_modules/unrs-resolver
+npm error command sh -c node postinstall.js
+npm error nodenv: node: command not found
+```
+
+Două cauze suprapuse:
+
+1. **S-a rulat `npm install`, nu `npm ci --omit=dev`.** `unrs-resolver` este
+   `dev: true` — vine din `eslint-config-next` → `eslint-import-resolver-typescript`
+   — și are script de instalare. Cu `--omit=dev` nu se instalează deloc.
+   Arborele de producție are **zero** pachete cu script de instalare, deci
+   această clasă de erori dispare complet.
+2. **`node` nu se rezolva** în shell-ul de deploy, din lipsa unei versiuni
+   nodenv selectate. Rezolvat cu `.node-version` și `NODENV_VERSION`.
+
+Nu instala niciodată `devDependencies` pe server: nu sunt necesare nici pentru
+`next build`, nici pentru rulare.
+
+### Curățare după o instalare eșuată
+
+O instalare picată lasă `node_modules` într-o stare incompletă. Înainte de a
+reîncerca, șterge-l — `npm ci` oricum îl recreează de la zero:
+
+```sh
+rm -rf catvi-frontend/node_modules catvi-backend/node_modules
+```
+
+---
+
+## 13. Ce nu a putut fi verificat de aici
 
 Fără acces la panou, următoarele rămân de confirmat la prima instalare:
 
