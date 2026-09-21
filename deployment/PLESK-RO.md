@@ -688,6 +688,34 @@ temporar `Application Mode` pe `development`: Passenger afișează atunci
 eroarea reală în browser, în loc de pagina generică 500. Pune-l înapoi pe
 `production` imediat după.
 
+### Variabilele din panou nu ajung în build
+
+Simptom: setezi `NEXT_PUBLIC_API_BASE` la *Custom environment variables*,
+rulezi *Run script* → `deploy`, iar aplicația se comportă ca și cum variabila
+n-ar exista.
+
+Cauza: *Run script* nu transmite neapărat variabilele de mediu ale aplicației
+către procesul scriptului. Build-ul rulează fără ele, iar valorile
+`NEXT_PUBLIC_*` se compilează definitiv în bundle — deci rămân cele implicite.
+
+Verificare din exterior, fără acces la server: descarcă un chunk JS al paginii
+și caută valoarea în el. Dacă găsești `"/api"` în loc de adresa configurată,
+variabila nu a ajuns la build.
+
+Soluția, ca la backend: pune-o într-un fișier, nu în panou. În
+`catvi-frontend/.env.production`:
+
+```dotenv
+NEXT_PUBLIC_API_BASE=https://api.DOMENIU.md/api
+```
+
+Next îl citește automat la `next build` — confirmă în ieșirea build-ului
+linia `- Environments: .env.production`. Fișierul este acoperit de
+`.gitignore`, deci niciun deploy nu îl suprascrie.
+
+Același tipar se aplică oriunde ai nevoie de o variabilă la build:
+`.env.production` pentru frontend, `.env` pentru backend.
+
 ### Curățare după o instalare eșuată
 
 O instalare picată lasă `node_modules` într-o stare incompletă. Înainte de a
