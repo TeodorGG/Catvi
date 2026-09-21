@@ -12,7 +12,8 @@
     "db:check": "node scripts/check-db.js",
     "deploy": "npm ci --omit=dev && mkdir -p tmp && touch tmp/restart.txt",
     "db:probe": "node scripts/db-probe.js",
-    "kill:stale": "node scripts/kill-stale.js"
+    "kill:stale": "node scripts/kill-stale.js",
+    "show:error": "node scripts/show-error.js"
   },
   "engines": {
     "node": ">=22.0.0"
