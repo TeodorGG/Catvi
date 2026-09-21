@@ -1,4 +1,11 @@
-require("dotenv").config({ quiet: true });
+// Passenger pornește procesul cu alt director curent decât rădăcina
+// aplicației, iar dotenv caută .env relativ la cwd. Fără calea explicită,
+// .env nu este citit sub Passenger, NODE_ENV=production rămâne setat de
+// panou, iar config() oprește procesul — „exited prematurely”.
+require("dotenv").config({
+  path: require("node:path").join(__dirname, ".env"),
+  quiet: true,
+});
 const { createApp } = require("./app");
 const { openStorage } = require("./storage");
 const { config } = require("./config");

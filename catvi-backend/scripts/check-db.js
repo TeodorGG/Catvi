@@ -1,4 +1,7 @@
-require("dotenv").config({ quiet: true });
+require("dotenv").config({
+  path: require("node:path").join(__dirname, "..", ".env"),
+  quiet: true,
+});
 const { openStorage } = require("../storage");
 (async () => {
   const db = await openStorage();

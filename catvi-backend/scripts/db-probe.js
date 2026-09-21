@@ -4,7 +4,10 @@
 // Există pentru că mesajul „Ident authentication failed” nu spune ce metodă
 // de autentificare ar merge — doar că cea aleasă de pg_hba.conf a eșuat.
 // Parola nu este afișată niciodată.
-require("dotenv").config({ quiet: true });
+require("dotenv").config({
+  path: require("node:path").join(__dirname, "..", ".env"),
+  quiet: true,
+});
 const { parse } = require("pg-connection-string");
 const { Client } = require("pg");
 

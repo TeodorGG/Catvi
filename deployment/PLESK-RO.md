@@ -647,6 +647,47 @@ Atenție totuși: proxy-ul Next tamponează răspunsurile, ceea ce afectează
 măsurarea debitului. Este o soluție de etapă; varianta curată rămâne
 `/api/` rutat de Nginx, din `plesk-nginx.conf`.
 
+### `The application process exited prematurely`
+
+În logul domeniului:
+
+```
+Could not spawn process for application .../CATVI/catvi-backend:
+The application process exited prematurely.
+```
+
+Passenger pornește procesul, iar acesta moare înainte să răspundă. În
+`server.js` orice eroare de pornire duce la `process.exit(1)`, deci a eșuat
+`config()`, `openStorage()` sau `listen()`.
+
+Simptomul derutant: `npm run start` din panou ajunge până la `listen()`, dar
+Passenger nu reușește deloc. Cauza este **directorul curent**.
+
+`dotenv` caută `.env` relativ la `process.cwd()`, nu la directorul scriptului.
+`npm run start` rulează din `catvi-backend`, deci `.env` este găsit. Passenger
+pornește procesul cu alt director curent, `.env` nu mai este citit, iar
+`NODE_ENV=production` rămâne setat de `Application Mode` din panou — deci
+`config()` aruncă și procesul iese imediat.
+
+Reparat: `server.js` și scripturile încarcă acum `.env` pe cale absolută,
+construită din `__dirname`, deci nu mai depinde de unde este pornit procesul.
+
+Verificare, pornind intenționat din alt director:
+
+```
+NODE_ENV=production node ../app/server.js
+→ connect ECONNREFUSED 127.0.0.1:5432
+```
+
+Un mesaj despre baza de date înseamnă că `.env` **a fost** citit. Dacă apare
+în schimb `Set a random JWT_SECRET…`, fișierul nu a fost găsit.
+
+Detaliile complete ale unui eșec Passenger sunt în fișierul indicat de log,
+`/tmp/passenger-error-*.html`. Dacă File Manager nu ajunge în `/tmp`, treci
+temporar `Application Mode` pe `development`: Passenger afișează atunci
+eroarea reală în browser, în loc de pagina generică 500. Pune-l înapoi pe
+`production` imediat după.
+
 ### Curățare după o instalare eșuată
 
 O instalare picată lasă `node_modules` într-o stare incompletă. Înainte de a

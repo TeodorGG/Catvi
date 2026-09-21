@@ -1,4 +1,7 @@
-require("dotenv").config({ quiet: true });
+require("dotenv").config({
+  path: require("node:path").join(__dirname, "..", ".env"),
+  quiet: true,
+});
 const { randomUUID } = require("node:crypto");
 const bcrypt = require("bcryptjs");
 const { openStorage } = require("../storage");
