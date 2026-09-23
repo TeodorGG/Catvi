@@ -6,7 +6,12 @@ const { randomUUID } = require("node:crypto");
 const bcrypt = require("bcryptjs");
 const { openStorage } = require("../storage");
 async function main() {
-  const email = (process.argv[2] || "").trim().toLowerCase();
+  // Argumentul rămâne varianta preferată într-un terminal. Panoul Plesk însă
+  // rulează scripturile fără argumente, așa că acceptăm și o variabilă de
+  // mediu — de pus temporar în .env, alături de parolă, și ștearsă imediat.
+  const email = (process.argv[2] || process.env.CATVI_ADMIN_EMAIL || "")
+    .trim()
+    .toLowerCase();
   const password = process.env.CATVI_ADMIN_PASSWORD;
   if (
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
@@ -16,7 +21,10 @@ async function main() {
     Buffer.byteLength(password) > 72
   )
     throw new Error(
-      "Usage: set CATVI_ADMIN_PASSWORD (12–72 UTF-8 bytes), then npm run admin:create -- email@example.md",
+      "Setează CATVI_ADMIN_EMAIL și CATVI_ADMIN_PASSWORD (12–72 octeți UTF-8)\n" +
+        "în catvi-backend/.env, apoi rulează admin:create și șterge-le imediat.\n" +
+        "Într-un terminal poți da emailul și ca argument:\n" +
+        "  npm run admin:create -- email@exemplu.md",
     );
   const db = await openStorage();
   try {
