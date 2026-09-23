@@ -1,5 +1,9 @@
+"use client";
 import Link from "next/link";
+import { useLang } from "@/lib/i18n";
+
 export default function SiteFooter() {
+  const { t } = useLang();
   return (
     <footer className="site-footer">
       <div className="container footer-inner">
@@ -7,17 +11,17 @@ export default function SiteFooter() {
           <Link className="footer-brand" href="/">
             catvi.
           </Link>
-          <span>Internetul Moldovei, măsurat împreună.</span>
+          <span>{t("footerTagline")}</span>
         </div>
         <div>
-          <Link href="/despre">Metodologie</Link>
-          <Link href="/confidentialitate">Date & confidențialitate</Link>
-          <Link href="/admin">Administrare ↗</Link>
+          <Link href="/despre">{t("footerMethodology")}</Link>
+          <Link href="/confidentialitate">{t("footerPrivacy")}</Link>
+          <Link href="/admin">{t("footerAdmin")}</Link>
         </div>
       </div>
       <div className="container footer-bottom">
         <span>© {new Date().getFullYear()} CATVI</span>
-        <span>Republica Moldova · Date din teste voluntare</span>
+        <span>{t("footerCountry")}</span>
       </div>
     </footer>
   );

@@ -4,7 +4,10 @@ import Link from "next/link";
 import MoldovaMap from "@/components/MoldovaMap";
 import { request, number } from "@/lib/api";
 import regions from "@/lib/regions.json";
+import { useLang } from "@/lib/i18n";
+
 export default function RegionsPage() {
+  const { t } = useLang();
   const [rows, setRows] = useState([]),
     [selected, setSelected] = useState("Chișinău"),
     [state, setState] = useState("loading");
@@ -25,18 +28,14 @@ export default function RegionsPage() {
     <main id="main" className="container page-main">
       <div className="page-heading">
         <div>
-          <div className="eyebrow">DATE DESCHISE / REPUBLICA MOLDOVA</div>
-          <h1>Internetul, regiune cu regiune.</h1>
-          <p>
-            Medii ale testelor voluntare către serverul din Moldova. Publicăm o
-            medie doar după cel puțin 5 măsurători utilizabile într-o regiune.
-          </p>
+          <div className="eyebrow">{t("mapEyebrow")}</div>
+          <h1>{t("mapH1")}</h1>
+          <p>{t("mapLede")}</p>
         </div>
       </div>
       {state === "error" && (
         <p className="notice error" role="alert">
-          Datele nu sunt disponibile momentan. Harta nu afișează valori
-          demonstrative.
+          {t("mapErrorNotice")}
         </p>
       )}
       <div className="map-layout">
@@ -44,10 +43,10 @@ export default function RegionsPage() {
           <MoldovaMap regions={rows} onSelect={setSelected} />
           <div className="map-legend">
             {[
-              ["#e1e7dc", "Date insuficiente"],
-              ["#c9d8f6", "Sub 30 Mbps"],
-              ["#85a8ef", "30–99 Mbps"],
-              ["#2156df", "100+ Mbps"],
+              ["#e1e7dc", t("legendInsufficient")],
+              ["#c9d8f6", t("legendUnder30")],
+              ["#85a8ef", t("legend30to99")],
+              ["#2156df", t("legend100plus")],
             ].map(([color, label]) => (
               <span key={label}>
                 <i style={{ background: color }} />
@@ -58,7 +57,7 @@ export default function RegionsPage() {
         </div>
         <div className="surface region-detail">
           <div className="field" style={{ width: "100%" }}>
-            <label htmlFor="selected-region">Selectează regiunea</label>
+            <label htmlFor="selected-region">{t("selectRegionLabel")}</label>
             <select
               id="selected-region"
               value={selected}
@@ -71,42 +70,35 @@ export default function RegionsPage() {
           </div>
           <h2>{selected}</h2>
           {state === "loading" ? (
-            <p role="status">Încărcăm măsurătorile…</p>
+            <p role="status">{t("loadingMeasurements")}</p>
           ) : state === "error" ? (
-            <p>
-              Conexiunea cu baza de date nu este disponibilă. Încearcă din nou
-              mai târziu.
-            </p>
+            <p>{t("connectionErrorMsg")}</p>
           ) : data ? (
             <>
-              <span className="index-label">DOWNLOAD MEDIU</span>
+              <span className="index-label">{t("avgDownloadLabel")}</span>
               <div className="region-number">
                 {number(data.avg_down)}
                 <small>Mbps</small>
               </div>
               <p>
-                Upload mediu: <strong>{number(data.avg_up)} Mbps</strong>
+                {t("avgUploadTemplate").replace("{up}", number(data.avg_up))}
                 <br />
-                {number(data.sample_count)} măsurători utilizabile.
+                {t("sampleCountTemplate").replace("{n}", number(data.sample_count))}
               </p>
             </>
           ) : (
             <>
-              <span className="badge short">Date insuficiente</span>
-              <p style={{ marginTop: 20 }}>
-                Nu avem încă 5 măsurători utilizabile pentru această regiune.
-                Absența datelor nu înseamnă absența internetului.
-              </p>
+              <span className="badge short">{t("legendInsufficient")}</span>
+              <p style={{ marginTop: 20 }}>{t("insufficientBody")}</p>
             </>
           )}
           <Link href="/" className="text-link">
-            Contribuie cu un test <span>↗</span>
+            {t("contributeLink")} <span>↗</span>
           </Link>
         </div>
       </div>
       <p className="table-caption">
-        Regiunea și furnizorul sunt declarate de participanți. Eșantionul nu
-        reprezintă statistic întreaga populație. Limite administrative:{" "}
+        {t("tableCaptionPre")}{" "}
         <a
           href="https://www.geoboundaries.org/"
           target="_blank"
@@ -114,20 +106,18 @@ export default function RegionsPage() {
         >
           geoBoundaries
         </a>
-        , CC BY 4.0.
+        {t("tableCaptionPost")}
       </p>
       {rows.length > 0 && (
         <div className="surface table-scroll" style={{ marginTop: 30 }}>
           <table>
-            <caption className="sr-only">
-              Medii regionale din măsurători utilizabile
-            </caption>
+            <caption className="sr-only">{t("srTableCaption")}</caption>
             <thead>
               <tr>
-                <th>Regiune</th>
-                <th>Download mediu</th>
-                <th>Upload mediu</th>
-                <th>Teste</th>
+                <th>{t("tableRegion")}</th>
+                <th>{t("tableAvgDown")}</th>
+                <th>{t("tableAvgUp")}</th>
+                <th>{t("tableTests")}</th>
               </tr>
             </thead>
             <tbody>

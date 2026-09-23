@@ -4,16 +4,19 @@ import Link from "next/link";
 import { request, number, providers, saveLocalResult } from "@/lib/api";
 import regions from "@/lib/regions.json";
 import { runMeasurement } from "@/lib/speedtestEngine";
+import { useLang } from "@/lib/i18n";
 import MoldovaMap from "./MoldovaMap";
-const phases = {
-  idle: "Pregătit de măsurare",
-  ping: "Măsurăm latența",
-  download: "Măsurăm descărcarea",
-  upload: "Măsurăm încărcarea",
-  done: "Măsurare încheiată",
-  error: "Testul nu s-a încheiat",
-};
+
 export default function SpeedTest() {
+  const { t } = useLang();
+  const phases = {
+    idle: t("phaseIdle"),
+    ping: t("phasePing"),
+    download: t("phaseDownload"),
+    upload: t("phaseUpload"),
+    done: t("phaseDone"),
+    error: t("phaseError"),
+  };
   const [server, setServer] = useState(null),
     [serverError, setServerError] = useState(false);
   const [phase, setPhase] = useState("idle"),
@@ -98,17 +101,10 @@ export default function SpeedTest() {
             },
             signal: abort.signal,
           });
-          if (mounted.current)
-            setSaved(
-              "Măsurarea a fost adăugată la datele proiectului. Mulțumim.",
-            );
+          if (mounted.current) setSaved(t("savedToProject"));
         } catch {
           if (mounted.current)
-            setSaved(
-              stored
-                ? "Rezultat salvat în acest browser. Trimiterea către proiect a eșuat."
-                : "Trimiterea și salvarea locală au eșuat. Rezultatul rămâne vizibil aici.",
-            );
+            setSaved(stored ? t("savedLocalOnlyFailed") : t("savedFailedAll"));
           request("/speedtest/session", {
             method: "DELETE",
             headers: { "X-Test-Token": measurement.token },
@@ -119,21 +115,17 @@ export default function SpeedTest() {
           method: "DELETE",
           headers: { "X-Test-Token": measurement.token },
         }).catch(() => {});
-        setSaved(
-          stored
-            ? "Rezultat salvat doar în acest browser. Nu a fost trimis în baza de cercetare."
-            : "Rezultatul nu a fost salvat. Stocarea în browser nu este disponibilă.",
-        );
+        setSaved(stored ? t("savedLocalOnlyNoConsent") : t("savedNotSaved"));
       }
     } catch (err) {
       if (mounted.current) {
         setPhase("error");
         setError(
           abort.signal.aborted
-            ? "Test oprit. Poți începe o nouă măsurare."
+            ? t("errorAborted")
             : err.message === "compressed_response"
-              ? "Serverul comprimă traficul de test. Măsurarea a fost oprită pentru a evita un rezultat incorect."
-              : "Nu am putut termina măsurarea. Verifică conexiunea și încearcă din nou.",
+              ? t("errorCompressed")
+              : t("errorGeneric"),
         );
       }
     } finally {
@@ -148,35 +140,44 @@ export default function SpeedTest() {
         `${(i / Math.max(1, samples.length - 1)) * 400},${64 - (value / max) * 52}`,
     )
     .join(" ");
+  const tips = [
+    [t("tip1Title"), t("tip1Body")],
+    [t("tip2Title"), t("tip2Body")],
+    [t("tip3Title"), t("tip3Body")],
+  ];
+  const resultDetail = result
+    ? t("resultDetailTemplate")
+        .replace("{failures}", result.httpFailures)
+        .replace("{samples}", result.httpSamples)
+    : "";
   return (
     <main id="main" className="container home-main">
       <section className="home-intro">
         <div>
           <div className="eyebrow">
-            <span className="blue-square" /> OBSERVATORUL INTERNETULUI DIN
-            MOLDOVA
+            <span className="blue-square" /> {t("eyebrowObservatory")}
           </div>
           <h1>
-            Cât de rapid e<br />
-            internetul <span className="serif-word">tău?</span>
+            {t("heroTitleLine1")}
+            <br />
+            {t("heroTitleWord")} <span className="serif-word">{t("heroTitleQuestion")}</span>
           </h1>
         </div>
         <div className="intro-aside">
-          <span className="index-label">O CONEXIUNE. O MĂSURARE.</span>
+          <span className="index-label">{t("introLabel")}</span>
           <p>
-            Vezi viteza reală a conexiunii tale. <br />
-            Ajută-ne să înțelegem internetul
-            <br className="desktop-break" /> din Republica Moldova.
+            {t("introP1")} <br />
+            {t("introP2")}
           </p>
           <a href="#measurement" className="text-link">
-            Începe aici <span>↙</span>
+            {t("introCta")} <span>↙</span>
           </a>
         </div>
       </section>
       <section
         className="test-panel"
         id="measurement"
-        aria-label="Test de viteză"
+        aria-label={t("navHome")}
       >
         <div className="test-panel-top">
           <span>
@@ -184,19 +185,19 @@ export default function SpeedTest() {
               className={`status-dot ${serverError ? "offline" : server ? "" : "pending"}`}
             />
             {serverError
-              ? "Server indisponibil"
+              ? t("serverOffline")
               : server
-                ? "Conexiune cu serverul disponibilă"
-                : "Verificăm serverul…"}
+                ? t("serverOnline")
+                : t("serverChecking")}
           </span>
           <span className="mono">
-            HTTP / {server?.country === "MD" ? "MOLDOVA" : "MEDIU LOCAL"}
+            HTTP / {server?.country === "MD" ? t("httpMoldova") : t("httpLocal")}
           </span>
         </div>
         <div className="test-body">
           <div className="instrument">
             <div className="instrument-caption">
-              <span>01 — TESTUL TĂU</span>
+              <span>{t("instrumentIndex")}</span>
               <span aria-live="polite">{phases[phase]}</span>
             </div>
             <div className="dial">
@@ -246,7 +247,7 @@ export default function SpeedTest() {
               </svg>
               <div className="dial-value">
                 <span>{number(phase === "done" ? result?.down : live)}</span>
-                <small>Mbps{phase === "upload" ? " · upload" : ""}</small>
+                <small>Mbps{phase === "upload" ? t("uploadSuffix") : ""}</small>
               </div>
             </div>
             <div className="start-row">
@@ -255,11 +256,7 @@ export default function SpeedTest() {
                 onClick={start}
                 disabled={busy}
               >
-                {busy
-                  ? "Test în curs…"
-                  : result
-                    ? "Testează din nou"
-                    : "Începe testul"}
+                {busy ? t("busyTesting") : result ? t("retestBtn") : t("startBtn")}
                 <span aria-hidden="true">↗</span>
               </button>
               {busy && (
@@ -267,24 +264,20 @@ export default function SpeedTest() {
                   className="text-link"
                   onClick={() => controller.current?.abort()}
                 >
-                  Oprește
+                  {t("stopBtn")}
                 </button>
               )}
             </div>
             <p className="test-footnote">
-              Fără cont. Aproximativ 15 secunde.
+              {t("footnoteNoAccount")}
               <br />
-              Consum de date: până la 240 MB per test.
+              {t("footnoteDataUsage")}
             </p>
             <div className="trace">
               <svg
                 viewBox="0 0 400 70"
                 preserveAspectRatio="none"
-                aria-label={
-                  samples.length
-                    ? "Viteza observată în timpul transferului"
-                    : "Graficul va apărea în timpul testului"
-                }
+                aria-label={samples.length ? t("traceMeasured") : t("traceWaiting")}
               >
                 <path
                   d="M0 17H400 M0 40H400 M0 64H400"
@@ -293,37 +286,31 @@ export default function SpeedTest() {
                 {samples.length > 1 && <polyline points={trace} />}
               </svg>
               <div>
-                <span>
-                  {samples.length ? "TRAFIC MĂSURAT" : "ÎN AȘTEPTAREA DATELOR"}
-                </span>
+                <span>{samples.length ? t("traceMeasured") : t("traceWaiting")}</span>
                 <span>Mbps</span>
               </div>
             </div>
           </div>
           <div className="test-context">
-            <div className="index-label">02 — CONTEXTUL CONEXIUNII</div>
+            <div className="index-label">{t("contextIndex")}</div>
             <h2>
-              Fiecare test spune
-              <br />o parte din poveste.
+              {t("contextTitleLine1")}
+              <br />
+              {t("contextTitleLine2")}
             </h2>
-            <p>
-              Adaugă câteva detalii pentru o imagine mai clară a conexiunii
-              tale.
-            </p>
+            <p>{t("contextLede")}</p>
             <fieldset disabled={busy}>
-              <legend className="sr-only">
-                Detalii opționale despre conexiune
-              </legend>
+              <legend className="sr-only">{t("fieldsetLegend")}</legend>
               <div className="field">
                 <label htmlFor="region">
-                  Raion / municipiu <span>opțional</span>
+                  {t("fieldRegionLabel")} <span>{t("fieldOptional")}</span>
                 </label>
                 <select
                   id="region"
                   value={region}
                   onChange={(e) => setRegion(e.target.value)}
                 >
-                  <option value="">Alege regiunea</option>
+                  <option value="">{t("fieldRegionPlaceholder")}</option>
                   {regions.map((r) => (
                     <option key={r}>{r}</option>
                   ))}
@@ -331,30 +318,30 @@ export default function SpeedTest() {
               </div>
               <div className="field">
                 <label htmlFor="provider">
-                  Furnizor <span>opțional</span>
+                  {t("fieldProviderLabel")} <span>{t("fieldOptional")}</span>
                 </label>
                 <select
                   id="provider"
                   value={provider}
                   onChange={(e) => setProvider(e.target.value)}
                 >
-                  <option value="">Alege furnizorul</option>
+                  <option value="">{t("fieldProviderPlaceholder")}</option>
                   {providers.map((p) => (
                     <option key={p}>{p}</option>
                   ))}
                 </select>
               </div>
               <div className="field">
-                <label htmlFor="connection">Tip de conexiune</label>
+                <label htmlFor="connection">{t("fieldConnectionLabel")}</label>
                 <select
                   id="connection"
                   value={connectionType}
                   onChange={(e) => setConnection(e.target.value)}
                 >
-                  <option value="unknown">Nu știu / prefer să nu indic</option>
-                  <option value="ethernet">Cablu Ethernet</option>
-                  <option value="wifi">Wi-Fi</option>
-                  <option value="mobile">Date mobile</option>
+                  <option value="unknown">{t("connUnknown")}</option>
+                  <option value="ethernet">{t("connEthernet")}</option>
+                  <option value="wifi">{t("connWifi")}</option>
+                  <option value="mobile">{t("connMobile")}</option>
                 </select>
               </div>
               <label className="consent">
@@ -364,10 +351,10 @@ export default function SpeedTest() {
                   onChange={(e) => setConsent(e.target.checked)}
                 />
                 <span>
-                  Contribui cu rezultatul la datele proiectului.
+                  {t("consentLabel")}
                   <small>
-                    Opțional. Fără IP sau locație exactă în baza de măsurători.{" "}
-                    <Link href="/confidentialitate">Ce date colectăm ↗</Link>
+                    {t("consentSmall")}{" "}
+                    <Link href="/confidentialitate">{t("consentLink")}</Link>
                   </small>
                 </span>
               </label>
@@ -379,13 +366,11 @@ export default function SpeedTest() {
             <span className="server-icon" aria-hidden="true">
               ▤
             </span>{" "}
-            SERVER DE MĂSURARE
+            {t("serverStripLabel")}
           </span>
-          <strong>{server?.name || "În curs de verificare"}</strong>
+          <strong>{server?.name || t("serverStripChecking")}</strong>
           <span>
-            {server?.country === "MD"
-              ? "Republica Moldova"
-              : "Locație Moldova neconfigurată"}
+            {server?.country === "MD" ? t("serverStripMD") : t("serverStripUnset")}
           </span>
         </div>
       </section>
@@ -399,24 +384,12 @@ export default function SpeedTest() {
           {saved}
         </p>
       )}
-      <section className="results-strip" aria-label="Rezultatele testului">
+      <section className="results-strip" aria-label={t("navHome")}>
         {[
-          [
-            "↓",
-            "Download",
-            result?.down,
-            "Mbps",
-            "Cât de repede primești date",
-          ],
-          ["↑", "Upload", result?.up, "Mbps", "Cât de repede trimiți date"],
-          [
-            "↔",
-            "Latență HTTP",
-            result?.ping,
-            "ms",
-            "Timpul de răspuns al serverului",
-          ],
-          ["≈", "Jitter", result?.jitter, "ms", "Variația timpului de răspuns"],
+          ["↓", t("resultDownload"), result?.down, "Mbps", t("resultDownloadHelp")],
+          ["↑", t("resultUpload"), result?.up, "Mbps", t("resultUploadHelp")],
+          ["↔", t("resultLatency"), result?.ping, "ms", t("resultLatencyHelp")],
+          ["≈", t("resultJitter"), result?.jitter, "ms", t("resultJitterHelp")],
         ].map(([icon, label, value, unit, help]) => (
           <div key={label} className="result-metric">
             <div>
@@ -433,66 +406,39 @@ export default function SpeedTest() {
       </section>
       {result && (
         <p className="muted result-detail">
-          {result.httpFailures} cereri HTTP eșuate din {result.httpSamples}.
-          Acest test nu măsoară pierderile de pachete UDP.{" "}
-          {(result.downloadMs < 250 || result.uploadMs < 250) &&
-            "Transfer prea scurt: rezultatul este păstrat pentru analiză, dar exclus din mediile publice."}
+          {resultDetail}{" "}
+          {(result.downloadMs < 250 || result.uploadMs < 250) && t("resultDetailShort")}
         </p>
       )}
       <section className="project-section">
         <div className="project-copy">
-          <div className="eyebrow">MAI MULT DECÂT UN NUMĂR</div>
+          <div className="eyebrow">{t("projectEyebrow")}</div>
           <h2>
-            O țară conectată.
-            <br />O imagine <em>mai clară.</em>
+            {t("projectTitle1")}
+            <br />
+            <em>{t("projectTitleEm")}</em>
           </h2>
-          <p>
-            De la Chișinău la cel mai mic sat, experiența online nu e aceeași.
-            Adunăm măsurători voluntare pentru a vedea diferențele, regiune cu
-            regiune.
-          </p>
+          <p>{t("projectP")}</p>
           <Link href="/harta" className="text-link">
-            Explorează datele regionale <span>↗</span>
+            {t("projectLink")} <span>↗</span>
           </Link>
           <div className="project-note">
             <span>37</span>
-            <p>
-              regiuni pe hartă.
-              <br />
-              Date reale, construite împreună.
-            </p>
+            <p>{t("projectNoteText")}</p>
           </div>
         </div>
         <div className="home-map">
           <span className="map-coordinate">48° N / 29° E</span>
           <MoldovaMap decorative />
-          <span className="map-credit">
-            Republica Moldova · geoBoundaries / CC BY 4.0
-          </span>
+          <span className="map-credit">{t("mapCredit")}</span>
         </div>
       </section>
       <section className="before-test">
-        <div className="eyebrow">PENTRU O MĂSURARE MAI BUNĂ</div>
+        <div className="eyebrow">{t("beforeTestEyebrow")}</div>
         <div>
-          {[
-            [
-              "01",
-              "Închide transferurile",
-              "Pune pe pauză descărcările, actualizările și streamingul.",
-            ],
-            [
-              "02",
-              "Apropie-te de conexiune",
-              "Folosește cablul Ethernet sau stai aproape de router.",
-            ],
-            [
-              "03",
-              "Privește rezultatul în context",
-              "Wi-Fi, VPN-ul și dispozitivul pot influența viteza măsurată.",
-            ],
-          ].map(([n, title, body]) => (
-            <article key={n}>
-              <span>{n}</span>
+          {tips.map(([title, body], i) => (
+            <article key={title}>
+              <span>{String(i + 1).padStart(2, "0")}</span>
               <h3>{title}</h3>
               <p>{body}</p>
             </article>

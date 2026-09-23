@@ -1,0 +1,12 @@
+{
+  "name": "catvi",
+  "private": true,
+  "description": "Root helper: runs npm commands in catvi-backend and catvi-frontend.",
+  "scripts": {
+    "postinstall": "npm --prefix catvi-backend install && npm --prefix catvi-frontend install",
+    "build": "npm --prefix catvi-frontend run build",
+    "test": "npm --prefix catvi-backend test",
+    "dev:backend": "npm --prefix catvi-backend run dev",
+    "dev:frontend": "npm --prefix catvi-frontend run dev"
+  }
+}

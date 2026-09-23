@@ -2,12 +2,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_BASE, request, number, providers } from "@/lib/api";
 import regions from "@/lib/regions.json";
-const qualityLabel = {
-  usable: "Durată suficientă",
-  short: "Transfer scurt",
-  excluded: "Exclus",
-};
+import { useLang } from "@/lib/i18n";
+
 export default function AdminPage() {
+  const { t } = useLang();
+  const qualityLabel = {
+    usable: t("qualityUsable"),
+    short: t("qualityShort"),
+    excluded: t("qualityExcluded"),
+  };
   const [user, setUser] = useState(undefined),
     [email, setEmail] = useState(""),
     [password, setPassword] = useState("");
@@ -35,11 +38,9 @@ export default function AdminPage() {
       .then(setUser)
       .catch((err) => {
         setUser(null);
-        if (err.status !== 401)
-          setError(
-            "Serverul nu este disponibil. Pornește API-ul sau verifică conexiunea.",
-          );
+        if (err.status !== 401) setError(t("adminServerUnavailable"));
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const refresh = useCallback(
     async (signal) => {
@@ -55,7 +56,7 @@ export default function AdminPage() {
       } catch (err) {
         if (!signal?.aborted) {
           if (err.status === 401) setUser(null);
-          else setError("Nu am putut încărca datele. Încearcă din nou.");
+          else setError(t("refreshLoadError"));
         }
       } finally {
         if (!signal?.aborted) setLoading(false);
@@ -87,10 +88,10 @@ export default function AdminPage() {
     } catch (err) {
       setError(
         err.status === 429
-          ? "Prea multe încercări. Revino în 15 minute."
+          ? t("loginErrorRateLimit")
           : err.status === 401
-            ? "Email sau parolă incorectă."
-            : "Autentificarea nu este disponibilă momentan.",
+            ? t("loginErrorBadCreds")
+            : t("loginErrorUnavailable"),
       );
     } finally {
       setWorking(false);
@@ -104,7 +105,7 @@ export default function AdminPage() {
       setStats(null);
       setAudit([]);
     } catch {
-      setError("Deconectarea a eșuat. Încearcă din nou.");
+      setError(t("logoutError"));
     }
   }
   async function exportData() {
@@ -123,8 +124,8 @@ export default function AdminPage() {
         const body = await response.json();
         throw new Error(
           body.error === "narrow_export_filters"
-            ? "Exportul este limitat la 10.000 de rânduri. Restrânge intervalul sau filtrele."
-            : "Exportul a eșuat.",
+            ? t("exportLimitError")
+            : t("exportGenericError"),
         );
       }
       const url = URL.createObjectURL(await response.blob()),
@@ -154,7 +155,7 @@ export default function AdminPage() {
       await refresh();
     } catch (err) {
       if (err.status === 401) setUser(null);
-      else setError("Excluderea nu a fost salvată. Încearcă din nou.");
+      else setError(t("reviewSaveError"));
     } finally {
       setWorking(false);
     }
@@ -167,19 +168,16 @@ export default function AdminPage() {
   if (user === undefined)
     return (
       <main id="main" className="container page-main">
-        <p role="status">Verificăm sesiunea…</p>
+        <p role="status">{t("adminSessionChecking")}</p>
       </main>
     );
   if (!user)
     return (
       <main id="main" className="container page-main">
         <section className="surface login-box">
-          <span className="eyebrow">CATVI / ADMINISTRARE</span>
-          <h1>Acces la datele proiectului.</h1>
-          <p>
-            Autentificare pentru administratorii autorizați. Participanții pot
-            rula teste fără cont.
-          </p>
+          <span className="eyebrow">{t("loginEyebrow")}</span>
+          <h1>{t("loginH1")}</h1>
+          <p>{t("loginP")}</p>
           {error && (
             <p className="notice error" role="alert">
               {error}
@@ -187,7 +185,7 @@ export default function AdminPage() {
           )}
           <form onSubmit={login}>
             <div className="field">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">{t("loginEmailLabel")}</label>
               <input
                 id="email"
                 type="email"
@@ -198,7 +196,7 @@ export default function AdminPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="password">Parolă</label>
+              <label htmlFor="password">{t("loginPasswordLabel")}</label>
               <input
                 id="password"
                 type="password"
@@ -209,7 +207,7 @@ export default function AdminPage() {
               />
             </div>
             <button className="button primary" disabled={working}>
-              {working ? "Autentificare…" : "Intră în panou"} <span>↗</span>
+              {working ? t("loginBtnWorking") : t("loginBtnIdle")} <span>↗</span>
             </button>
           </form>
         </section>
@@ -219,16 +217,13 @@ export default function AdminPage() {
     <main id="main" className="container page-main">
       <div className="page-heading">
         <div>
-          <div className="eyebrow">CATVI / ADMINISTRARE</div>
-          <h1>Datele din spatele conexiunilor.</h1>
-          <p>
-            Monitorizează colectarea, verifică rezultatele și exportă datele
-            pentru analiză.
-          </p>
+          <div className="eyebrow">{t("adminEyebrow")}</div>
+          <h1>{t("adminH1")}</h1>
+          <p>{t("adminP")}</p>
         </div>
         <div className="admin-actions">
           <button className="text-link" onClick={logout}>
-            Ieși din cont ↗
+            {t("logoutBtn")}
           </button>
         </div>
       </div>
@@ -239,14 +234,10 @@ export default function AdminPage() {
       )}
       <div className="admin-stats">
         {[
-          ["MĂSURĂTORI", stats?.total, "Toate rezultatele cu acord"],
-          ["ASTĂZI · UTC", stats?.today, "Măsurători noi"],
-          [
-            "DOWNLOAD MEDIU",
-            stats?.down,
-            "Mbps · teste utilizabile, server MD",
-          ],
-          ["REGIUNI CU DATE", stats?.regions, "Teste utilizabile, server MD"],
+          [t("statMeasurements"), stats?.total, t("statMeasurementsHelp")],
+          [t("statToday"), stats?.today, t("statTodayHelp")],
+          [t("statAvgDown"), stats?.down, t("statAvgDownHelp")],
+          [t("statRegionsWithData"), stats?.regions, t("statRegionsWithDataHelp")],
         ].map(([label, value, help]) => (
           <div className="surface stat-card" key={label}>
             <span>{label}</span>
@@ -260,16 +251,17 @@ export default function AdminPage() {
           {user.email} · {stats?.database || "…"} · {stats?.server?.name || "…"}
         </span>
         <span>
-          {number(stats?.short || 0)} transferuri scurte ·{" "}
-          {number(stats?.excluded || 0)} excluse
+          {t("adminInfoTemplate")
+            .replace("{short}", number(stats?.short || 0))
+            .replace("{excluded}", number(stats?.excluded || 0))}
         </span>
       </div>
       <section className="surface">
         <div className="filter-bar">
           {[
-            ["region", "Regiune", regions],
-            ["provider", "Furnizor", providers],
-            ["quality", "Calitate", Object.keys(qualityLabel)],
+            ["region", t("filterRegion"), regions],
+            ["provider", t("filterProvider"), providers],
+            ["quality", t("filterQuality"), Object.keys(qualityLabel)],
           ].map(([key, label, options]) => (
             <div className="field" key={key}>
               <label htmlFor={"filter-" + key}>{label}</label>
@@ -278,7 +270,7 @@ export default function AdminPage() {
                 value={filters[key]}
                 onChange={(e) => filter(key, e.target.value)}
               >
-                <option value="">Toate</option>
+                <option value="">{t("filterAll")}</option>
                 {options.map((value) => (
                   <option key={value} value={value}>
                     {key === "quality" ? qualityLabel[value] : value}
@@ -288,8 +280,8 @@ export default function AdminPage() {
             </div>
           ))}
           {[
-            ["from", "Din data · UTC"],
-            ["to", "Până la · UTC"],
+            ["from", t("filterFrom")],
+            ["to", t("filterTo")],
           ].map(([key, label]) => (
             <div className="field" key={key}>
               <label htmlFor={key}>{label}</label>
@@ -306,7 +298,7 @@ export default function AdminPage() {
             onClick={exportData}
             disabled={working || loading}
           >
-            Export CSV ↓
+            {t("exportBtn")}
           </button>
           <button
             className="button"
@@ -316,12 +308,12 @@ export default function AdminPage() {
             }}
             disabled={loading}
           >
-            Actualizează
+            {t("refreshBtn")}
           </button>
         </div>
         {review && (
           <form className="review-form" onSubmit={exclude}>
-            <label htmlFor="reason">Motivul excluderii</label>
+            <label htmlFor="reason">{t("reviewReasonLabel")}</label>
             <input
               id="reason"
               minLength={5}
@@ -329,48 +321,43 @@ export default function AdminPage() {
               required
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="De ce acest rezultat nu trebuie inclus în statistici?"
+              placeholder={t("reviewReasonPlaceholder")}
             />
             <button className="button primary" disabled={working}>
-              Exclude și înregistrează
+              {t("reviewExcludeBtn")}
             </button>
             <button
               type="button"
               className="button"
               onClick={() => setReview(null)}
             >
-              Anulează
+              {t("reviewCancelBtn")}
             </button>
           </form>
         )}
         {loading ? (
           <div className="empty-state" role="status">
-            <p>Încărcăm măsurătorile…</p>
+            <p>{t("loadingMeasurementsAdmin")}</p>
           </div>
         ) : !data?.rows.length ? (
           <div className="empty-state">
-            <h2>Nicio măsurare în această selecție.</h2>
-            <p>
-              Rezultatele apar aici când un participant finalizează testul și
-              acceptă contribuția la proiect.
-            </p>
+            <h2>{t("emptySelectionTitle")}</h2>
+            <p>{t("emptySelectionP")}</p>
           </div>
         ) : (
           <div className="table-scroll">
             <table>
-              <caption className="sr-only">
-                Măsurători colectate cu acordul participanților
-              </caption>
+              <caption className="sr-only">{t("srMeasurementsCaption")}</caption>
               <thead>
                 <tr>
-                  <th>Data · locală</th>
-                  <th>Regiune / furnizor</th>
-                  <th>↓ Mbps</th>
-                  <th>↑ Mbps</th>
-                  <th>Latență · ms</th>
-                  <th>Server</th>
-                  <th>Calitate</th>
-                  <th>Revizuire</th>
+                  <th>{t("colDate")}</th>
+                  <th>{t("colRegionProvider")}</th>
+                  <th>{t("colDown")}</th>
+                  <th>{t("colUp")}</th>
+                  <th>{t("colLatency")}</th>
+                  <th>{t("colServer")}</th>
+                  <th>{t("colQuality")}</th>
+                  <th>{t("colReview")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -383,10 +370,10 @@ export default function AdminPage() {
                       })}
                     </td>
                     <td>
-                      {row.region || "Nedeclarată"}
+                      {row.region || t("undeclaredRegion")}
                       <br />
                       <small className="muted">
-                        {row.provider || "Nedeclarat"} · {row.connection_type}
+                        {row.provider || t("undeclaredProvider")} · {row.connection_type}
                       </small>
                     </td>
                     <td>{number(row.down)}</td>
@@ -404,7 +391,7 @@ export default function AdminPage() {
                     </td>
                     <td>
                       {row.quality === "excluded" ? (
-                        <span title={row.excluded_reason}>Exclus ⓘ</span>
+                        <span title={row.excluded_reason}>{t("excludedTag")}</span>
                       ) : (
                         <button
                           className="text-link"
@@ -413,7 +400,7 @@ export default function AdminPage() {
                             setReason("");
                           }}
                         >
-                          Exclude
+                          {t("excludeBtn")}
                         </button>
                       )}
                     </td>
@@ -425,7 +412,9 @@ export default function AdminPage() {
         )}
         <div className="pagination">
           <span>
-            {data?.total || 0} rezultate · pagina {page}
+            {t("paginationTemplate")
+              .replace("{total}", data?.total || 0)
+              .replace("{page}", page)}
           </span>
           <div>
             <button
@@ -436,7 +425,7 @@ export default function AdminPage() {
                 setPage((p) => p - 1);
               }}
             >
-              ← Înapoi
+              {t("prevBtn")}
             </button>
             <button
               className="button"
@@ -446,26 +435,22 @@ export default function AdminPage() {
                 setPage((p) => p + 1);
               }}
             >
-              Înainte →
+              {t("nextBtn")}
             </button>
           </div>
         </div>
       </section>
-      <p className="table-caption">
-        Timpii sunt raportați de browser; regiunea și furnizorul sunt declarate
-        de participant. Testele locale, excluse și transferurile scurte nu intră
-        în mediile publice. Export: maximum 10.000 de rânduri per selecție.
-      </p>
+      <p className="table-caption">{t("tableCaptionAdmin")}</p>
       <details className="audit">
-        <summary>Jurnal de administrare · ultimele 100 de acțiuni</summary>
+        <summary>{t("auditSummary")}</summary>
         <div className="surface table-scroll">
           <table>
             <thead>
               <tr>
-                <th>Data</th>
-                <th>Administrator</th>
-                <th>Acțiune</th>
-                <th>Motiv / filtre</th>
+                <th>{t("auditColDate")}</th>
+                <th>{t("auditColAdmin")}</th>
+                <th>{t("auditColAction")}</th>
+                <th>{t("auditColReason")}</th>
               </tr>
             </thead>
             <tbody>
@@ -479,7 +464,7 @@ export default function AdminPage() {
               ))}
               {!audit.length && (
                 <tr>
-                  <td colSpan={4}>Nicio acțiune înregistrată.</td>
+                  <td colSpan={4}>{t("auditEmpty")}</td>
                 </tr>
               )}
             </tbody>
