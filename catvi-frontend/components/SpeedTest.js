@@ -6,6 +6,7 @@ import regions from "@/lib/regions.json";
 import { runMeasurement } from "@/lib/speedtestEngine";
 import { useLang } from "@/lib/i18n";
 import MoldovaMap from "./MoldovaMap";
+import SpeedGauge from "./SpeedGauge";
 
 export default function SpeedTest() {
   const { t } = useLang();
@@ -201,54 +202,13 @@ export default function SpeedTest() {
               <span aria-live="polite">{phases[phase]}</span>
             </div>
             <div className="dial">
-              <svg viewBox="0 0 360 205" aria-hidden="true">
-                <path
-                  d="M 30 175 A 150 150 0 0 1 330 175"
-                  className="dial-track"
-                />
-                {Array.from({ length: 41 }, (_, i) => {
-                  const angle = Math.PI + (i / 40) * Math.PI;
-                  const big = i % 10 === 0;
-                  return (
-                    <line
-                      key={i}
-                      x1={(180 + Math.cos(angle) * 140).toFixed(3)}
-                      y1={(175 + Math.sin(angle) * 140).toFixed(3)}
-                      x2={(180 + Math.cos(angle) * (big ? 127 : 133)).toFixed(
-                        3,
-                      )}
-                      y2={(175 + Math.sin(angle) * (big ? 127 : 133)).toFixed(
-                        3,
-                      )}
-                      className={
-                        busy &&
-                        i <
-                          Math.min(
-                            40,
-                            (live || 0) <= 100
-                              ? (live || 0) / 5
-                              : 20 + ((live || 0) - 100) / 45,
-                          )
-                          ? "lit"
-                          : ""
-                      }
-                    />
-                  );
-                })}
-                <text x="24" y="199">
-                  0
-                </text>
-                <text x="167" y="13">
-                  100
-                </text>
-                <text x="314" y="199">
-                  1G+
-                </text>
-              </svg>
-              <div className="dial-value">
-                <span>{number(phase === "done" ? result?.down : live)}</span>
-                <small>Mbps{phase === "upload" ? t("uploadSuffix") : ""}</small>
-              </div>
+              <SpeedGauge
+                value={(phase === "done" ? result?.down : live) ?? 0}
+                unit={`Mbps${phase === "upload" ? t("uploadSuffix") : ""}`}
+                label={phase === "upload" ? t("resultUpload") : t("resultDownload")}
+                scale="log"
+                size={350}
+              />
             </div>
             <div className="start-row">
               <button
